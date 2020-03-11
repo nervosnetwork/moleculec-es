@@ -34,7 +34,8 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 	fmt.Fprintln(writer, "import { VERSION } from \"ckb-js-toolkit\";")
 	fmt.Fprintln(writer, "if (parseInt(VERSION.split(\".\")[1]) < 5) {")
 	fmt.Fprintln(writer, "  throw new Error(\"moleculec-es requires at least ckb-js-toolkit 0.5.0!\");")
-	fmt.Fprintln(writer, "}\n")
+	fmt.Fprintln(writer, "}")
+	fmt.Fprintln(writer)
 
 	for _, declaration := range schema.Declarations {
 		fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
@@ -46,38 +47,47 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 		fmt.Fprintln(writer, "      throw new Error(\"Provided value must be an ArrayBuffer or can be transformed into ArrayBuffer!\")")
 		fmt.Fprintln(writer, "    }")
 		fmt.Fprintln(writer, "    this.view = new DataView(reader);")
-		fmt.Fprintln(writer, "  }\n")
+		fmt.Fprintln(writer, "  }")
+		fmt.Fprintln(writer)
 		switch declaration.Type {
 		case "array":
 			if declaration.Item == "byte" {
 				fmt.Fprintln(writer, "  indexAt(i) {")
 				fmt.Fprintln(writer, "    return this.view.getUint8(i);")
-				fmt.Fprintln(writer, "  }\n")
+				fmt.Fprintln(writer, "  }")
+				fmt.Fprintln(writer)
 				fmt.Fprintln(writer, "  view() {")
 				fmt.Fprintln(writer, "    return this.view;")
-				fmt.Fprintln(writer, "  }\n")
+				fmt.Fprintln(writer, "  }")
+				fmt.Fprintln(writer)
 				switch declaration.ItemCount {
 				case 2:
 					fmt.Fprintln(writer, "  toBigEndianUint16() {")
 					fmt.Fprintln(writer, "    return this.view.getUint16(0, false);")
-					fmt.Fprintln(writer, "  }\n")
+					fmt.Fprintln(writer, "  }")
+					fmt.Fprintln(writer)
 					fmt.Fprintln(writer, "  toLittleEndianUint16() {")
 					fmt.Fprintln(writer, "    return this.view.getUint16(0, true);")
-					fmt.Fprintln(writer, "  }\n")
+					fmt.Fprintln(writer, "  }")
+					fmt.Fprintln(writer)
 				case 4:
 					fmt.Fprintln(writer, "  toBigEndianUint32() {")
 					fmt.Fprintln(writer, "    return this.view.getUint32(0, false);")
-					fmt.Fprintln(writer, "  }\n")
+					fmt.Fprintln(writer, "  }")
+					fmt.Fprintln(writer)
 					fmt.Fprintln(writer, "  toLittleEndianUint32() {")
 					fmt.Fprintln(writer, "    return this.view.getUint32(0, true);")
-					fmt.Fprintln(writer, "  }\n")
+					fmt.Fprintln(writer, "  }")
+					fmt.Fprintln(writer)
 				case 8:
 					fmt.Fprintln(writer, "  toBigEndianBigUint64() {")
 					fmt.Fprintln(writer, "    return this.view.getBigUint64(0, false);")
-					fmt.Fprintln(writer, "  }\n")
+					fmt.Fprintln(writer, "  }")
+					fmt.Fprintln(writer)
 					fmt.Fprintln(writer, "  toLittleEndianBigUint64() {")
 					fmt.Fprintln(writer, "    return this.view.getUint64(0, true);")
-					fmt.Fprintln(writer, "  }\n")
+					fmt.Fprintln(writer, "  }")
+					fmt.Fprintln(writer)
 				}
 				fmt.Fprintln(writer, "  size() {")
 				fmt.Fprintf(writer, "    return %d;\n", declaration.ItemCount)
@@ -85,7 +95,8 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 			} else {
 				fmt.Fprintln(writer, "  indexAt(i) {")
 				fmt.Fprintf(writer, "    return new %s(this.view.buffer.slice(i * %s.size(), (i + 1) * %s.size());\n", declaration.Item, declaration.Item, declaration.Item)
-				fmt.Fprintln(writer, "  }\n")
+				fmt.Fprintln(writer, "  }")
+				fmt.Fprintln(writer)
 				fmt.Fprintln(writer, "  size() {")
 				fmt.Fprintf(writer, "    return %s.size() * %d;\n", declaration.Item, declaration.ItemCount)
 				fmt.Fprintln(writer, "  }")
@@ -93,7 +104,8 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 		default:
 			return fmt.Errorf("Invalid declaration type: %s", declaration.Type)
 		}
-		fmt.Fprintln(writer, "}\n")
+		fmt.Fprintln(writer, "}")
+		fmt.Fprintln(writer)
 
 		fmt.Fprintf(writer, "export function Serialize%s(value) {\n", declaration.Name)
 		switch declaration.Type {
@@ -111,7 +123,8 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 		default:
 			return fmt.Errorf("Invalid declaration type: %s", declaration.Type)
 		}
-		fmt.Fprintln(writer, "}\n")
+		fmt.Fprintln(writer, "}")
+		fmt.Fprintln(writer)
 	}
 
 	return nil
