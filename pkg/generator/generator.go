@@ -3,6 +3,9 @@ package generator
 import (
 	"fmt"
 	"io"
+	"strings"
+
+	"github.com/iancoleman/strcase"
 )
 
 type innerWriter struct {
@@ -126,9 +129,9 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 				fmt.Fprintln(writer, "    if (this.view.byteLength < 4) {")
 				fmt.Fprintln(writer, "      throw new Error(`Data should at least be 4 bytes long! Actual: ${this.view.byteLength}`);")
 				fmt.Fprintln(writer, "    }")
-				fmt.Fprintln(writer, "    const requiredLength = this.length() + 4;")
-				fmt.Fprintln(writer, "    if (this.view.byteLength !== requiredLength) {")
-				fmt.Fprintln(writer, "      throw new Error(`Invalid data length! Required: ${requiredLength}, actual: ${this.view.byteLength}`);")
+				fmt.Fprintln(writer, "    const requiredByteLength = this.length() + 4;")
+				fmt.Fprintln(writer, "    if (this.view.byteLength !== requiredByteLength) {")
+				fmt.Fprintln(writer, "      throw new Error(`Invalid data length! Required: ${requiredByteLength}, actual: ${this.view.byteLength}`);")
 				fmt.Fprintln(writer, "    }")
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer)
@@ -145,9 +148,9 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 				fmt.Fprintln(writer, "    if (this.view.byteLength < 4) {")
 				fmt.Fprintln(writer, "      throw new Error(`Data should at least be 4 bytes long! Actual: ${this.view.byteLength}`);")
 				fmt.Fprintln(writer, "    }")
-				fmt.Fprintf(writer, "    const requiredLength = this.length() * %s.size() + 4;\n", declaration.Item)
-				fmt.Fprintln(writer, "    if (this.view.byteLength !== requiredLength) {")
-				fmt.Fprintln(writer, "      throw new Error(`Invalid data length! Required: ${requiredLength}, actual: ${this.view.byteLength}`);")
+				fmt.Fprintf(writer, "    const requiredByteLength = this.length() * %s.size() + 4;\n", declaration.Item)
+				fmt.Fprintln(writer, "    if (this.view.byteLength !== requiredByteLength) {")
+				fmt.Fprintln(writer, "      throw new Error(`Invalid data length! Required: ${requiredByteLength}, actual: ${this.view.byteLength}`);")
 				fmt.Fprintln(writer, "    }")
 				fmt.Fprintf(writer, "    for (let i = 0; i < %d; i++) {\n", declaration.ItemCount)
 				fmt.Fprintln(writer, "      const item = this.indexAt(i);")
@@ -162,6 +165,39 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 			}
 			fmt.Fprintln(writer, "  length() {")
 			fmt.Fprintln(writer, "    return this.view.getUint32(0, true);")
+			fmt.Fprintln(writer, "  }")
+		case "struct":
+			sizes := []string{"0"}
+			for _, field := range declaration.Fields {
+				if field.Type == "byte" {
+					fmt.Fprintf(writer, `  %s() {
+    return this.view.getUint8(%s);
+  }`+"\n\n",
+						strcase.ToLowerCamel(fmt.Sprintf("get_%s", field.Name)),
+						strings.Join(sizes, " + "))
+					sizes = append(sizes, "1")
+				} else {
+					fmt.Fprintf(writer, `  %s() {
+    return new %s(this.view.buffer.slice(%s, %s.size()), { validate: false });
+  }`+"\n\n",
+						strcase.ToLowerCamel(fmt.Sprintf("get_%s", field.Name)),
+						field.Type,
+						strings.Join(sizes, " + "),
+						field.Type)
+					sizes = append(sizes, fmt.Sprintf("%s.size()", field.Type))
+				}
+			}
+			fmt.Fprintf(writer, `  validate(compatible = false) {
+    const requiredByteLength = %s;
+    if (this.view.byteLength !== requiredByteLength) {
+      throw new Error(`+"`"+`Invalid data length! Required: ${requiredByteLength}, actual: ${this.view.byteLength}`+"`"+`);
+    }`+"\n", strings.Join(sizes, " + "))
+			for _, field := range declaration.Fields {
+				if field.Type != "byte" {
+					fmt.Fprintf(writer, "    this.%s().validate(compatible);\n",
+						strcase.ToLowerCamel(fmt.Sprintf("get_%s", field.Name)))
+				}
+			}
 			fmt.Fprintln(writer, "  }")
 		case "option":
 			if declaration.Item == "byte" {
@@ -225,6 +261,29 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer, "  return array.buffer;")
 			}
+		case "struct":
+			sizes := []string{"0"}
+			for _, field := range declaration.Fields {
+				if field.Type == "byte" {
+					sizes = append(sizes, "1")
+				} else {
+					sizes = append(sizes, fmt.Sprintf("%s.size()", field.Type))
+				}
+			}
+			fmt.Fprintf(writer, "  const array = new Uint8Array(%s);\n", strings.Join(sizes, " + "))
+			fmt.Fprintln(writer, "  const view = new DataView(array.buffer);")
+			sizes = []string{"0"}
+			for _, field := range declaration.Fields {
+				if field.Type == "byte" {
+					fmt.Fprintf(writer, "  view.setUint8(%s, value.%s);\n", strings.Join(sizes, " + "), field.Name)
+					sizes = append(sizes, "1")
+				} else {
+					fmt.Fprintf(writer, "  const itemBuffer = Serialize%s(value.%s);\n", field.Type, field.Name)
+					fmt.Fprintf(writer, "  array.set(new Uint8Array(itemBuffer), %s);\n", strings.Join(sizes, " + "))
+					sizes = append(sizes, fmt.Sprintf("%s.size()", field.Type))
+				}
+			}
+			fmt.Fprintln(writer, "  return array.buffer;")
 		case "option":
 			if declaration.Item == "byte" {
 				fmt.Fprintln(writer, `  if (value) {
