@@ -83,7 +83,12 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 				fmt.Fprintf(writer, "    return %d;\n", declaration.ItemCount)
 				fmt.Fprintln(writer, "  }")
 			} else {
-				return fmt.Errorf("TODO: implement array reader for item type %s", declaration.Item)
+				fmt.Fprintln(writer, "  indexAt(i) {")
+				fmt.Fprintf(writer, "    return new %s(this.view.buffer.slice(i * %s.size(), (i + 1) * %s.size());\n", declaration.Item, declaration.Item, declaration.Item)
+				fmt.Fprintln(writer, "  }\n")
+				fmt.Fprintln(writer, "  size() {")
+				fmt.Fprintf(writer, "    return %s.size() * %d;\n", declaration.Item, declaration.ItemCount)
+				fmt.Fprintln(writer, "  }")
 			}
 		default:
 			return fmt.Errorf("Invalid declaration type: %s", declaration.Type)
@@ -96,7 +101,12 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 			if declaration.Item == "byte" {
 				fmt.Fprintln(writer, "  return new Reader(value).toArrayBuffer();")
 			} else {
-				return fmt.Errorf("TODO: implement array serialization for item type %s", declaration.Item)
+				fmt.Fprintf(writer, "  const array = new Uint8Array(%s.size() * value.length);\n", declaration.Item)
+				fmt.Fprintln(writer, "  for (let i = 0; i < value.length; i++) {")
+				fmt.Fprintf(writer, "    const itemBuffer = Serialize%s(value[i]);\n", declaration.Item)
+				fmt.Fprintf(writer, "    array.set(new Uint8Array(itemBuffer), i * %s.size());\n", declaration.Item)
+				fmt.Fprintln(writer, "  }")
+				fmt.Fprintln(writer, "  return array.buffer;")
 			}
 		default:
 			return fmt.Errorf("Invalid declaration type: %s", declaration.Type)
