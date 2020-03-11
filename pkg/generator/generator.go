@@ -101,6 +101,28 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 				fmt.Fprintf(writer, "    return %s.size() * %d;\n", declaration.Item, declaration.ItemCount)
 				fmt.Fprintln(writer, "  }")
 			}
+		case "fixvec":
+			if declaration.Item == "byte" {
+				fmt.Fprintln(writer, "  length() {")
+				fmt.Fprintln(writer, "    return this.view.getUint32(0, true);")
+				fmt.Fprintln(writer, "  }")
+				fmt.Fprintln(writer)
+				fmt.Fprintln(writer, "  view() {")
+				fmt.Fprintln(writer, "    return new DataView(this.view.buffer, 4);")
+				fmt.Fprintln(writer, "  }")
+				fmt.Fprintln(writer)
+				fmt.Fprintln(writer, "  indexAt(i) {")
+				fmt.Fprintln(writer, "    return this.view.getUint8(4 + i);")
+				fmt.Fprintln(writer, "  }")
+			} else {
+				fmt.Fprintln(writer, "  length() {")
+				fmt.Fprintf(writer, "    return this.view.getUint32(0, true) / %s.size();\n", declaration.Item)
+				fmt.Fprintln(writer, "  }")
+				fmt.Fprintln(writer)
+				fmt.Fprintln(writer, "  indexAt(i) {")
+				fmt.Fprintf(writer, "    return new %s(this.view.buffer.slice(4 + i * %s.size(), 4 + (i + 1) * %s.size());\n", declaration.Item, declaration.Item, declaration.Item)
+				fmt.Fprintln(writer, "  }")
+			}
 		default:
 			return fmt.Errorf("Invalid declaration type: %s", declaration.Type)
 		}
@@ -117,6 +139,22 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 				fmt.Fprintln(writer, "  for (let i = 0; i < value.length; i++) {")
 				fmt.Fprintf(writer, "    const itemBuffer = Serialize%s(value[i]);\n", declaration.Item)
 				fmt.Fprintf(writer, "    array.set(new Uint8Array(itemBuffer), i * %s.size());\n", declaration.Item)
+				fmt.Fprintln(writer, "  }")
+				fmt.Fprintln(writer, "  return array.buffer;")
+			}
+		case "fixvec":
+			if declaration.Item == "byte" {
+				fmt.Fprintln(writer, "  const reader = new Reader(value);")
+				fmt.Fprintln(writer, "  const array = new Uint8Array(4 + reader.length());")
+				fmt.Fprintln(writer, "  (new DataView(array.buffer)).setUint32(reader.length(), true);")
+				fmt.Fprintln(writer, "  array.set(new Uint8Array(reader.toArrayBuffer()), 4);")
+				fmt.Fprintln(writer, "  return array.buffer;")
+			} else {
+				fmt.Fprintf(writer, "  const array = new Uint8Array(4 + %s.size() * value.length);\n", declaration.Item)
+				fmt.Fprintln(writer, "  (new DataView(array.buffer)).setUint32(value.length, true);")
+				fmt.Fprintln(writer, "  for (let i = 0; i < value.length; i++) {")
+				fmt.Fprintf(writer, "    const itemBuffer = Serialize%s(value[i]);\n", declaration.Item)
+				fmt.Fprintf(writer, "    array.set(new Uint8Array(itemBuffer), 4 + i * %s.size());\n", declaration.Item)
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer, "  return array.buffer;")
 			}
