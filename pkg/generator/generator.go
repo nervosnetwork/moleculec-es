@@ -343,6 +343,60 @@ function serializeTable(buffers) {
 			fmt.Fprintln(writer, `  hasValue() {
     return this.view.byteLength > 0;
   }`)
+		case "union":
+			fmt.Fprintln(writer, `  validate(compatible = false) {
+    if (this.view.byteLength < 4) {
+      throw new Error(`+"`"+`Data should at least be 4 bytes long! Actual: ${this.view.byteLength}`+"`"+`);
+    }
+    const t = this.view.getUint32(0, true);
+    switch (t) {`)
+			for i, item := range declaration.Items {
+				if item == "byte" {
+					fmt.Fprintf(writer, `    case %d:
+      if (this.view.byteLength !== 5) {
+        throw new Error(`+"`"+`Invalid data length! Required: 5, actual: ${this.view.byteLength}`+"`"+`);
+      }
+      break;`+"\n", i)
+				} else {
+					fmt.Fprintf(writer, `    case %d:
+      new %s(this.view.buffer.slice(4), { validate: false }).validate();
+      break;`+"\n",
+						i, item)
+				}
+			}
+			fmt.Fprintln(writer, `    default:
+      throw new Error(`+"`"+`Invalid type: ${t}`+"`"+`);
+    }
+  }`)
+			fmt.Fprintln(writer)
+			fmt.Fprintln(writer, `  unionType() {
+    const t = this.view.getUint32(0, true);
+    switch (t) {`)
+			for i, item := range declaration.Items {
+				fmt.Fprintf(writer, `    case %d:
+      return "%s";`+"\n", i, item)
+			}
+			fmt.Fprintln(writer, `    default:
+      throw new Error(`+"`"+`Invalid type: ${t}`+"`"+`);
+    }
+  }`)
+			fmt.Fprintln(writer)
+			fmt.Fprintln(writer, `  value() {
+    const t = this.view.getUint32(0, true);
+    switch (t) {`)
+			for i, item := range declaration.Items {
+				if item == "byte" {
+					fmt.Fprintf(writer, `    case %d:
+      return this.view.buffer.getUint8(4);`+"\n", i)
+				} else {
+					fmt.Fprintf(writer, `    case %d:
+      return new %s(this.view.buffer.slice(4), { validate: false });`+"\n", i, item)
+				}
+			}
+			fmt.Fprintln(writer, `    default:
+      throw new Error(`+"`"+`Invalid type: ${t}`+"`"+`);
+    }
+  }`)
 		default:
 			return fmt.Errorf("Invalid declaration type: %s", declaration.Type)
 		}
@@ -433,6 +487,27 @@ function serializeTable(buffers) {
     return new ArrayBuffer(0);
   }`+"\n", declaration.Item)
 			}
+		case "union":
+			fmt.Fprintln(writer, "  switch (value.type) {")
+			for i, item := range declaration.Items {
+				fmt.Fprintf(writer, "  case \"%s\":\n", item)
+				if item == "byte" {
+					fmt.Fprintf(writer, `    const view = new DataView(new ArrayBuffer(5));
+    view.setUint32(0, %d, true);
+    view.setUint8(4, value.value);
+    return view.buffer;`+"\n", i)
+				} else {
+					fmt.Fprintf(writer, `    const itemBuffer = Serialize%s(value.value);
+    const array = new Uint8Array(4 + itemBuffer.byteLength);
+    const view = new DataView(array.buffer);
+    view.setUint32(0, %d, true);
+    array.set(new Uint8Array(itemBuffer), 4);
+    return array.buffer;`+"\n", item, i)
+				}
+			}
+			fmt.Fprintln(writer, `  default:
+    throw new Error(`+"`"+`Invalid type: ${value.type}`+"`"+`);
+  }`+"\n")
 		default:
 			return fmt.Errorf("Invalid declaration type: %s", declaration.Type)
 		}
