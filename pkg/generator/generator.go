@@ -280,6 +280,42 @@ function serializeTable(buffers) {
     }
     return new %s(this.view.buffer.slice(offset, offset_end), { validate: false };)
   }`+"\n", declaration.Item, declaration.Item)
+		case "table":
+			fmt.Fprintln(writer, `  validate(compatible = false) {
+    const offsets = verifyAndExtractOffsets(this.view, 0, true);`)
+			for i, field := range declaration.Fields {
+				if field.Type == "byte" {
+					fmt.Fprintf(writer, `    if (offset[%d] - offset[%d] !== 1) {
+      throw new Error(`+"`"+`Invalid offset for %s: ${offset[%d]} - ${offset[%d]}`+"`"+`)
+    }`+"\n", i+1, i, field.Name, i, i+1)
+				} else {
+					fmt.Fprintf(writer, "    new %s(this.view.buffer.slice(offset[%d], offset[%d]), { validate: false }).validate();\n", field.Type, i, i+1)
+				}
+			}
+			fmt.Fprintln(writer, "  }")
+			fmt.Fprintln(writer)
+			for i, field := range declaration.Fields {
+				last := i == len(declaration.Fields)-1
+				fmt.Fprintf(writer, "  get%s() {\n", strcase.ToCamel(field.Name))
+				if last {
+					fmt.Fprintf(writer, `    const start = %d;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.byteLength;`+"\n", 4+i*4)
+				} else {
+					fmt.Fprintf(writer, `    const start = %d;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);`+"\n", 4+i*4)
+				}
+				if field.Type == "byte" {
+					fmt.Fprintln(writer, "    return new DataView(this.view.buffer.slice(offset, offset_end)).getUint8(0);")
+				} else {
+					fmt.Fprintf(writer, "    return new %s(this.view.buffer.slice(offset, offset_end), { validate: false });\n", field.Type)
+				}
+				fmt.Fprintln(writer, "  }")
+				if !last {
+					fmt.Fprintln(writer)
+				}
+			}
 		case "option":
 			if declaration.Item == "byte" {
 				fmt.Fprintln(writer, `  validate(compatible = false) {
@@ -367,6 +403,19 @@ function serializeTable(buffers) {
 			fmt.Fprintln(writer, "  return array.buffer;")
 		case "dynvec":
 			fmt.Fprintf(writer, "  return serializeTable(value.map(item => Serialize%s(item)));\n", declaration.Item)
+		case "table":
+			fmt.Fprintln(writer, "  const buffers = [];")
+			for _, field := range declaration.Fields {
+				camelCaseName := strcase.ToLowerCamel(field.Name)
+				if field.Type == "byte" {
+					fmt.Fprintf(writer, `  const %sView = new DataView(new ArrayBuffer(1));
+  %sView.setUint8(0, value.%s);
+  buffers.push(%sView.buffer)`+"\n", camelCaseName, camelCaseName, field.Name, camelCaseName)
+				} else {
+					fmt.Fprintf(writer, "  buffers.push(Serialize%s(value.%s));\n", field.Type, field.Name)
+				}
+			}
+			fmt.Fprintln(writer, "  return serializeTable(buffers);")
 		case "option":
 			if declaration.Item == "byte" {
 				fmt.Fprintln(writer, `  if (value) {
