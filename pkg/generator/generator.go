@@ -34,19 +34,37 @@ func Generate(schema Schema, writer io.Writer) error {
 }
 
 func doGenerate(schema Schema, writer *innerWriter) error {
-	fmt.Fprintln(writer, `function verifyAndExtractOffsets(view, expectedFieldCount, compatible) {
+	fmt.Fprintln(writer, `function dataLengthError(actual, required) {
+    throw new Error(`+"`"+`Invalid data length! Required: ${required}, actual: ${actual}`+"`"+`);
+}
+
+function assertDataLength(actual, required) {
+  if (actual !== required) {
+    dataLengthError(actual, required);
+  }
+}
+
+function assertArrayBuffer(reader) {
+  if (reader instanceof Object && reader.toArrayBuffer instanceof Function) {
+    reader = reader.toArrayBuffer();
+  }
+  if (!(reader instanceof ArrayBuffer)) {
+    throw new Error("Provided value must be an ArrayBuffer or can be transformed into ArrayBuffer!");
+  }
+  return reader;
+}
+
+function verifyAndExtractOffsets(view, expectedFieldCount, compatible) {
   if (view.byteLength < 4) {
-    throw new Error(`+"`"+`Data should at least be 4 bytes long! Actual: ${view.byteLength}`+"`"+`);
+    dataLengthError(view.byteLength, ">4");
   }
   const requiredByteLength = view.getUint32(0, true);
-  if (requiredByteLength !== view.byteLength) {
-    throw new Error(`+"`"+`Invalid data length! Required: ${requiredByteLength}, actual: ${view.byteLength}`+"`"+`);
-  }
+  assertDataLength(view.byteLength, requiredByteLength);
   if (requiredByteLength === 4) {
     return [requiredByteLength];
   }
   if (requiredByteLength < 8) {
-    throw new Error(`+"`"+`Non empty data should at least be of length 8! Actual: ${view.byteLength}`+"`"+`);
+    dataLengthError(view.byteLength, ">8");
   }
   const firstOffset = view.getUint32(4, true);
   if (firstOffset % 4 !== 0 || firstOffset < 8) {
@@ -99,13 +117,7 @@ function serializeTable(buffers) {
 	for _, declaration := range schema.Declarations {
 		fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
 		fmt.Fprintln(writer, "  constructor(reader, { validate = true } = {}) {")
-		fmt.Fprintln(writer, "    if (reader instanceof Object && reader.toArrayBuffer instanceof Function) {")
-		fmt.Fprintln(writer, "      reader = reader.toArrayBuffer();")
-		fmt.Fprintln(writer, "    }")
-		fmt.Fprintln(writer, "    if (!(reader instanceof ArrayBuffer)) {")
-		fmt.Fprintln(writer, "      throw new Error(\"Provided value must be an ArrayBuffer or can be transformed into ArrayBuffer!\")")
-		fmt.Fprintln(writer, "    }")
-		fmt.Fprintln(writer, "    this.view = new DataView(reader);")
+		fmt.Fprintln(writer, "    this.view = new DataView(assertArrayBuffer(reader));")
 		fmt.Fprintln(writer, "    if (validate) {")
 		fmt.Fprintln(writer, "      this.validate();")
 		fmt.Fprintln(writer, "    }")
@@ -115,9 +127,7 @@ function serializeTable(buffers) {
 		case "array":
 			if declaration.Item == "byte" {
 				fmt.Fprintln(writer, "  validate(compatible = false) {")
-				fmt.Fprintf(writer, "    if (this.view.byteLength !== %d) {\n", declaration.ItemCount)
-				fmt.Fprintf(writer, "      throw new Error(`Invalid data length! Required: %d, actual: ${this.view.byteLength}`);\n", declaration.ItemCount)
-				fmt.Fprintln(writer, "    }")
+				fmt.Fprintf(writer, "    assertDataLength(this.view.byteLength, %d);\n", declaration.ItemCount)
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer)
 				fmt.Fprintln(writer, "  indexAt(i) {")
@@ -162,9 +172,7 @@ function serializeTable(buffers) {
 				fmt.Fprintln(writer, "  }")
 			} else {
 				fmt.Fprintln(writer, "  validate(compatible = false) {")
-				fmt.Fprintf(writer, "    if (this.view.byteLength !== %s.size() * %d) {\n", declaration.Item, declaration.ItemCount)
-				fmt.Fprintf(writer, "      throw new Error(`Invalid data length! Required: ${%s.size() * %d}, actual: ${this.view.byteLength}`);\n", declaration.Item, declaration.ItemCount)
-				fmt.Fprintln(writer, "    }")
+				fmt.Fprintf(writer, "    assertDataLength(this.view.byteLength, %s.size() * %d);\n", declaration.Item, declaration.ItemCount)
 				fmt.Fprintf(writer, "    for (let i = 0; i < %d; i++) {\n", declaration.ItemCount)
 				fmt.Fprintln(writer, "      const item = this.indexAt(i);")
 				fmt.Fprintln(writer, "      item.validate(compatible);")
@@ -183,12 +191,10 @@ function serializeTable(buffers) {
 			if declaration.Item == "byte" {
 				fmt.Fprintln(writer, "  validate(compatible = false) {")
 				fmt.Fprintln(writer, "    if (this.view.byteLength < 4) {")
-				fmt.Fprintln(writer, "      throw new Error(`Data should at least be 4 bytes long! Actual: ${this.view.byteLength}`);")
+				fmt.Fprintln(writer, "      dataLengthError(this.view.byteLength, \">4\")")
 				fmt.Fprintln(writer, "    }")
 				fmt.Fprintln(writer, "    const requiredByteLength = this.length() + 4;")
-				fmt.Fprintln(writer, "    if (this.view.byteLength !== requiredByteLength) {")
-				fmt.Fprintln(writer, "      throw new Error(`Invalid data length! Required: ${requiredByteLength}, actual: ${this.view.byteLength}`);")
-				fmt.Fprintln(writer, "    }")
+				fmt.Fprintln(writer, "    assertDataLength(this.view.byteLength, requiredByteLength);")
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer)
 				fmt.Fprintln(writer, "  raw() {")
@@ -202,12 +208,10 @@ function serializeTable(buffers) {
 			} else {
 				fmt.Fprintln(writer, "  validate(compatible = false) {")
 				fmt.Fprintln(writer, "    if (this.view.byteLength < 4) {")
-				fmt.Fprintln(writer, "      throw new Error(`Data should at least be 4 bytes long! Actual: ${this.view.byteLength}`);")
+				fmt.Fprintln(writer, "      dataLengthError(this.view.byteLength, \">4\");")
 				fmt.Fprintln(writer, "    }")
 				fmt.Fprintf(writer, "    const requiredByteLength = this.length() * %s.size() + 4;\n", declaration.Item)
-				fmt.Fprintln(writer, "    if (this.view.byteLength !== requiredByteLength) {")
-				fmt.Fprintln(writer, "      throw new Error(`Invalid data length! Required: ${requiredByteLength}, actual: ${this.view.byteLength}`);")
-				fmt.Fprintln(writer, "    }")
+				fmt.Fprintln(writer, "    assertDataLength(this.view.byteLength, requiredByteLength);")
 				fmt.Fprintf(writer, "    for (let i = 0; i < %d; i++) {\n", declaration.ItemCount)
 				fmt.Fprintln(writer, "      const item = this.indexAt(i);")
 				fmt.Fprintln(writer, "      item.validate(compatible);")
@@ -215,7 +219,7 @@ function serializeTable(buffers) {
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer)
 				fmt.Fprintln(writer, "  indexAt(i) {")
-				fmt.Fprintf(writer, "    return new %s(this.view.buffer.slice(4 + i * %s.size(), 4 + (i + 1) * %s.size(), { validate: false });\n", declaration.Item, declaration.Item, declaration.Item)
+				fmt.Fprintf(writer, "    return new %s(this.view.buffer.slice(4 + i * %s.size(), 4 + (i + 1) * %s.size()), { validate: false });\n", declaration.Item, declaration.Item, declaration.Item)
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer)
 			}
@@ -245,9 +249,7 @@ function serializeTable(buffers) {
 			}
 			fmt.Fprintf(writer, `  validate(compatible = false) {
     const requiredByteLength = %s;
-    if (this.view.byteLength !== requiredByteLength) {
-      throw new Error(`+"`"+`Invalid data length! Required: ${requiredByteLength}, actual: ${this.view.byteLength}`+"`"+`);
-    }`+"\n", strings.Join(sizes, " + "))
+    assertDataLength(this.view.byteLength, requiredByteLength);`+"\n", strings.Join(sizes, " + "))
 			for _, field := range declaration.Fields {
 				if field.Type != "byte" {
 					fmt.Fprintf(writer, "    this.%s().validate(compatible);\n",
@@ -346,16 +348,14 @@ function serializeTable(buffers) {
 		case "union":
 			fmt.Fprintln(writer, `  validate(compatible = false) {
     if (this.view.byteLength < 4) {
-      throw new Error(`+"`"+`Data should at least be 4 bytes long! Actual: ${this.view.byteLength}`+"`"+`);
+      assertDataLength(this.view.byteLength, ">4");
     }
     const t = this.view.getUint32(0, true);
     switch (t) {`)
 			for i, item := range declaration.Items {
 				if item == "byte" {
 					fmt.Fprintf(writer, `    case %d:
-      if (this.view.byteLength !== 5) {
-        throw new Error(`+"`"+`Invalid data length! Required: 5, actual: ${this.view.byteLength}`+"`"+`);
-      }
+      assertDataLength(this.view.byteLength, 5);
       break;`+"\n", i)
 				} else {
 					fmt.Fprintf(writer, `    case %d:
