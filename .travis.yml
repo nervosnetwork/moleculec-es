@@ -6,25 +6,16 @@ go:
 before_script:
   - make download
 
-matrix:
-  include:
-    - name: build
-      script:
-        - go build ./cmd/moleculec-es
-    - name: test
-      script:
-        - make test
-    - name: fmt
-      script:
-        - make fmt
-        - git diff --exit-code
+script:
+  - go build ./cmd/moleculec-es
+  - make test
+  - make fmt
+  - git diff --exit-code
 
-jobs:
-  include:
-    - stage: deploy
-      provider: script
-      skip_cleanup: true
-      script: curl -sL https://git.io/goreleaser | bash
-      on:
-        tags: true
-        condition: $TRAVIS_OS_NAME = linux
+deploy:
+  - provider: script
+    skip_cleanup: true
+    script: curl -sL https://git.io/goreleaser | bash
+    on:
+      tags: true
+      condition: $TRAVIS_OS_NAME = linux
