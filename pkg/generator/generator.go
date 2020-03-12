@@ -34,12 +34,68 @@ func Generate(schema Schema, writer io.Writer) error {
 }
 
 func doGenerate(schema Schema, writer *innerWriter) error {
-	fmt.Fprintln(writer, "import { VERSION } from \"ckb-js-toolkit\";")
-	fmt.Fprintln(writer, "if (parseInt(VERSION.split(\".\")[1]) < 5) {")
-	fmt.Fprintln(writer, "  throw new Error(\"moleculec-es requires at least ckb-js-toolkit 0.5.0!\");")
-	fmt.Fprintln(writer, "}")
-	fmt.Fprintln(writer)
+	fmt.Fprintln(writer, `function verifyAndExtractOffsets(view, expectedFieldCount, compatible) {
+  if (view.byteLength < 4) {
+    throw new Error(`+"`"+`Data should at least be 4 bytes long! Actual: ${view.byteLength}`+"`"+`);
+  }
+  const requiredByteLength = view.getUint32(0, true);
+  if (requiredByteLength !== view.byteLength) {
+    throw new Error(`+"`"+`Invalid data length! Required: ${requiredByteLength}, actual: ${view.byteLength}`+"`"+`);
+  }
+  if (requiredByteLength === 4) {
+    return [requiredByteLength];
+  }
+  if (requiredByteLength < 8) {
+    throw new Error(`+"`"+`Non empty data should at least be of length 8! Actual: ${view.byteLength}`+"`"+`);
+  }
+  const firstOffset = view.getUint32(4, true);
+  if (firstOffset % 4 !== 0 || firstOffset < 8) {
+    throw new Error(`+"`"+`Invalid first offset: ${firstOffset}`+"`"+`);
+  }
+  const itemCount := firstOffset / 4 - 1;
+  if (itemCount < expectedFieldCount) {
+    throw new Error(`+"`"+`Item count not enough! Required: ${expectedFieldCount}, actual: ${itemCount}`+"`"+`);
+  } else if ((!compatible) && itemCount > expectedFieldCount) {
+    throw new Error(`+"`"+`Item count is more than required! Required: ${expectedFieldCount}, actual: ${itemCount}`+"`"+`);
+  }
+  if requiredByteLength < firstOffset {
+    throw new Error(`+"`"+`First offset is larger than byte length: ${firstOffset}`+"`"+`);
+  }
+  const offsets = [];
+  for (let i = 0; i < itemCount; i++) {
+    const start = 4 + i * 4;
+    offsets.push(view.getUint32(start, true));
+  }
+  offsets.push(requiredByteLength);
+  for (let i = 0; i < offsets.length - 1; i++) {
+    if (offsets[i] > offsets[i + 1]) {
+      throw new Error(`+"`"+`Offset index ${i}: ${offsets[i]} is larger than offset index ${i + 1}: ${offsets[i + 1]}`+"`"+`);
+    }
+  }
+  return offsets;
+}
 
+function serializeTable(buffers) {
+  const itemCount = buffers.length;
+  let totalSize = 4 * (itemCount + 1);
+  const offsets = [];
+
+  for (let i = 0; i < itemCount; i++) {
+    offsets.push(totalSize);
+    totalSize += buffers[i].byteLength;
+  }
+
+  const buffer = new ArrayBuffer(totalSize);
+  const array = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+
+  view.setUint32(0, totalSize, true);
+  for (let i = 0; i < itemCount; i++) {
+    view.setUint32(4 + i * 4, offsets[i], true);
+    array.set(new Uint8Array(buffers[i]), offsets[i]);
+  }
+  return buffer;
+}`)
 	for _, declaration := range schema.Declarations {
 		fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
 		fmt.Fprintln(writer, "  constructor(reader, { validate = true } = {}) {")
@@ -199,6 +255,31 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 				}
 			}
 			fmt.Fprintln(writer, "  }")
+		case "dynvec":
+			fmt.Fprintf(writer, `  validate(compatible = false) {
+    const offsets = verifyAndExtractOffsets(this.view, 0, true);
+    for (let i = 0; i < len(offsets) - 1; i++) {
+      new %s(this.view.buffer.slice(offsets[i], offsets[i + 1]), { validate: false }).validate();
+    }
+  }
+
+  length() {
+    if (this.view.byteLength < 8) {
+      return 0;
+    } else {
+      return this.view.getUint32(4, true) / 4 - 1;
+    }
+  }
+
+  indexAt(i) {
+    const start = 4 + i * 4;
+    const offset = this.view.getUint32(start, true);
+    let offset_end = this.view.byteLength;
+    if (i + 1 < this.length()) {
+      offset_end = this.view.getUint32(start + 4, true);
+    }
+    return new %s(this.view.buffer.slice(offset, offset_end), { validate: false };)
+  }`+"\n", declaration.Item, declaration.Item)
 		case "option":
 			if declaration.Item == "byte" {
 				fmt.Fprintln(writer, `  validate(compatible = false) {
@@ -284,6 +365,8 @@ func doGenerate(schema Schema, writer *innerWriter) error {
 				}
 			}
 			fmt.Fprintln(writer, "  return array.buffer;")
+		case "dynvec":
+			fmt.Fprintf(writer, "  return serializeTable(value.map(item => Serialize%s(item)));\n", declaration.Item)
 		case "option":
 			if declaration.Item == "byte" {
 				fmt.Fprintln(writer, `  if (value) {
