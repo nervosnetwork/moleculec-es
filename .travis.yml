@@ -2,6 +2,9 @@ language: go
 dist: bionic
 go:
   - 1.13.x
+os:
+  - linux
+  - osx
 
 before_script:
   - make download
@@ -12,10 +15,12 @@ script:
   - make fmt
   - git diff --exit-code
 
-deploy:
-  - provider: script
-    skip_cleanup: true
-    script: curl -sL https://git.io/goreleaser | bash
-    on:
-      tags: true
-      condition: $TRAVIS_OS_NAME = linux
+jobs:
+  include:
+    - stage: deploy
+      provider: script
+      script: curl -sL https://git.io/goreleaser | bash
+      os: linux
+      go: 1.13.x
+      on:
+        tags: true
