@@ -70,13 +70,13 @@ function verifyAndExtractOffsets(view, expectedFieldCount, compatible) {
   if (firstOffset % 4 !== 0 || firstOffset < 8) {
     throw new Error(`+"`"+`Invalid first offset: ${firstOffset}`+"`"+`);
   }
-  const itemCount := firstOffset / 4 - 1;
+  const itemCount = firstOffset / 4 - 1;
   if (itemCount < expectedFieldCount) {
     throw new Error(`+"`"+`Item count not enough! Required: ${expectedFieldCount}, actual: ${itemCount}`+"`"+`);
   } else if ((!compatible) && itemCount > expectedFieldCount) {
     throw new Error(`+"`"+`Item count is more than required! Required: ${expectedFieldCount}, actual: ${itemCount}`+"`"+`);
   }
-  if requiredByteLength < firstOffset {
+  if (requiredByteLength < firstOffset) {
     throw new Error(`+"`"+`First offset is larger than byte length: ${firstOffset}`+"`"+`);
   }
   const offsets = [];
@@ -135,7 +135,7 @@ function serializeTable(buffers) {
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer)
 				fmt.Fprintln(writer, "  raw() {")
-				fmt.Fprintln(writer, "    return this.view;")
+				fmt.Fprintln(writer, "    return this.view.buffer;")
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer)
 				switch declaration.ItemCount {
@@ -198,7 +198,7 @@ function serializeTable(buffers) {
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer)
 				fmt.Fprintln(writer, "  raw() {")
-				fmt.Fprintln(writer, "    return new DataView(this.view.buffer, 4);")
+				fmt.Fprintln(writer, "    return this.view.buffer.slice(4);")
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer)
 				fmt.Fprintln(writer, "  indexAt(i) {")
@@ -280,18 +280,18 @@ function serializeTable(buffers) {
     if (i + 1 < this.length()) {
       offset_end = this.view.getUint32(start + 4, true);
     }
-    return new %s(this.view.buffer.slice(offset, offset_end), { validate: false };)
+    return new %s(this.view.buffer.slice(offset, offset_end), { validate: false });
   }`+"\n", declaration.Item, declaration.Item)
 		case "table":
 			fmt.Fprintln(writer, `  validate(compatible = false) {
     const offsets = verifyAndExtractOffsets(this.view, 0, true);`)
 			for i, field := range declaration.Fields {
 				if field.Type == "byte" {
-					fmt.Fprintf(writer, `    if (offset[%d] - offset[%d] !== 1) {
-      throw new Error(`+"`"+`Invalid offset for %s: ${offset[%d]} - ${offset[%d]}`+"`"+`)
+					fmt.Fprintf(writer, `    if (offsets[%d] - offsets[%d] !== 1) {
+      throw new Error(`+"`"+`Invalid offset for %s: ${offsets[%d]} - ${offsets[%d]}`+"`"+`)
     }`+"\n", i+1, i, field.Name, i, i+1)
 				} else {
-					fmt.Fprintf(writer, "    new %s(this.view.buffer.slice(offset[%d], offset[%d]), { validate: false }).validate();\n", field.Type, i, i+1)
+					fmt.Fprintf(writer, "    new %s(this.view.buffer.slice(offsets[%d], offsets[%d]), { validate: false }).validate();\n", field.Type, i, i+1)
 				}
 			}
 			fmt.Fprintln(writer, "  }")
@@ -449,8 +449,7 @@ function serializeTable(buffers) {
 					fmt.Fprintf(writer, "  view.setUint8(%s, value.%s);\n", strings.Join(sizes, " + "), field.Name)
 					sizes = append(sizes, "1")
 				} else {
-					fmt.Fprintf(writer, "  const itemBuffer = Serialize%s(value.%s);\n", field.Type, field.Name)
-					fmt.Fprintf(writer, "  array.set(new Uint8Array(itemBuffer), %s);\n", strings.Join(sizes, " + "))
+					fmt.Fprintf(writer, "  array.set(new Uint8Array(Serialize%s(value.%s)), %s);\n", field.Type, field.Name, strings.Join(sizes, " + "))
 					sizes = append(sizes, fmt.Sprintf("%s.size()", field.Type))
 				}
 			}
