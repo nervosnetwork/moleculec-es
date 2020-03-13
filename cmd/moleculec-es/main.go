@@ -29,7 +29,7 @@ func main() {
 
 	writer := os.Stdout
 	if *outputFile != "-" {
-		writer, err = os.OpenFile(*outputFile, os.O_CREATE|os.O_WRONLY, 0644)
+		writer, err = os.OpenFile(*outputFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}

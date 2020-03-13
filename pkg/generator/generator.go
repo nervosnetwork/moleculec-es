@@ -167,7 +167,7 @@ function serializeTable(buffers) {
 					fmt.Fprintln(writer, "  }")
 					fmt.Fprintln(writer)
 				}
-				fmt.Fprintln(writer, "  size() {")
+				fmt.Fprintln(writer, "  static size() {")
 				fmt.Fprintf(writer, "    return %d;\n", declaration.ItemCount)
 				fmt.Fprintln(writer, "  }")
 			} else {
@@ -183,7 +183,7 @@ function serializeTable(buffers) {
 				fmt.Fprintf(writer, "    return new %s(this.view.buffer.slice(i * %s.size(), (i + 1) * %s.size(), { validate: false });\n", declaration.Item, declaration.Item, declaration.Item)
 				fmt.Fprintln(writer, "  }")
 				fmt.Fprintln(writer)
-				fmt.Fprintln(writer, "  size() {")
+				fmt.Fprintln(writer, "  static size() {")
 				fmt.Fprintf(writer, "    return %s.size() * %d;\n", declaration.Item, declaration.ItemCount)
 				fmt.Fprintln(writer, "  }")
 			}
@@ -247,9 +247,8 @@ function serializeTable(buffers) {
 					sizes = append(sizes, fmt.Sprintf("%s.size()", field.Type))
 				}
 			}
-			fmt.Fprintf(writer, `  validate(compatible = false) {
-    const requiredByteLength = %s;
-    assertDataLength(this.view.byteLength, requiredByteLength);`+"\n", strings.Join(sizes, " + "))
+			fmt.Fprintln(writer, `  validate(compatible = false) {
+    assertDataLength(this.view.byteLength, this.size());`)
 			for _, field := range declaration.Fields {
 				if field.Type != "byte" {
 					fmt.Fprintf(writer, "    this.%s().validate(compatible);\n",
@@ -257,6 +256,9 @@ function serializeTable(buffers) {
 				}
 			}
 			fmt.Fprintln(writer, "  }")
+			fmt.Fprintf(writer, `  static size() {
+    return %s;
+  }`+"\n", strings.Join(sizes, " + "))
 		case "dynvec":
 			fmt.Fprintf(writer, `  validate(compatible = false) {
     const offsets = verifyAndExtractOffsets(this.view, 0, true);
@@ -407,7 +409,9 @@ function serializeTable(buffers) {
 		switch declaration.Type {
 		case "array":
 			if declaration.Item == "byte" {
-				fmt.Fprintln(writer, "  return new Reader(value).toArrayBuffer();")
+				fmt.Fprintln(writer, "  const buffer = assertArrayBuffer(value);")
+				fmt.Fprintf(writer, "  assertDataLength(buffer.byteLength, %d);\n", declaration.ItemCount)
+				fmt.Fprintln(writer, "  return buffer;")
 			} else {
 				fmt.Fprintf(writer, "  const array = new Uint8Array(%s.size() * value.length);\n", declaration.Item)
 				fmt.Fprintln(writer, "  for (let i = 0; i < value.length; i++) {")
@@ -418,10 +422,10 @@ function serializeTable(buffers) {
 			}
 		case "fixvec":
 			if declaration.Item == "byte" {
-				fmt.Fprintln(writer, "  const reader = new Reader(value);")
-				fmt.Fprintln(writer, "  const array = new Uint8Array(4 + reader.length());")
-				fmt.Fprintln(writer, "  (new DataView(array.buffer)).setUint32(0, reader.length(), true);")
-				fmt.Fprintln(writer, "  array.set(new Uint8Array(reader.toArrayBuffer()), 4);")
+				fmt.Fprintln(writer, "  const item = assertArrayBuffer(value);")
+				fmt.Fprintln(writer, "  const array = new Uint8Array(4 + item.byteLength);")
+				fmt.Fprintln(writer, "  (new DataView(array.buffer)).setUint32(0, item.byteLength, true);")
+				fmt.Fprintln(writer, "  array.set(new Uint8Array(item), 4);")
 				fmt.Fprintln(writer, "  return array.buffer;")
 			} else {
 				fmt.Fprintf(writer, "  const array = new Uint8Array(4 + %s.size() * value.length);\n", declaration.Item)
