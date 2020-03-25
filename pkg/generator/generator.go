@@ -22,7 +22,7 @@ func (w *innerWriter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
-func Generate(schema Schema, writer io.Writer) error {
+func Generate(schema Schema, writer io.Writer, tsWriter io.Writer) error {
 	iw := &innerWriter{
 		writer: writer,
 	}
@@ -30,7 +30,22 @@ func Generate(schema Schema, writer io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return iw.err
+	if iw.err != nil {
+		return iw.err
+	}
+	if tsWriter != nil {
+		tw := &innerWriter{
+			writer: tsWriter,
+		}
+		err = doGenerateDefinition(schema, tw)
+		if err != nil {
+			return err
+		}
+		if tw.err != nil {
+			return tw.err
+		}
+	}
+	return nil
 }
 
 func doGenerate(schema Schema, writer *innerWriter) error {
@@ -114,6 +129,7 @@ function serializeTable(buffers) {
   }
   return buffer;
 }`)
+	fmt.Fprintln(writer)
 	for _, declaration := range schema.Declarations {
 		fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
 		fmt.Fprintln(writer, "  constructor(reader, { validate = true } = {}) {")
@@ -519,4 +535,201 @@ function serializeTable(buffers) {
 	}
 
 	return nil
+}
+
+func doGenerateDefinition(schema Schema, writer *innerWriter) error {
+	fmt.Fprintln(writer, `export interface CastToArrayBuffer {
+  toArrayBuffer(): ArrayBuffer;
+}
+
+export type CanCastToArrayBuffer = ArrayBuffer | CastToArrayBuffer;
+
+export interface CreateOptions {
+  validate?: boolean;
+}
+
+export interface UnionType {
+  type: string;
+  value: any;
+}`)
+	fmt.Fprintln(writer)
+	for _, declaration := range schema.Declarations {
+		switch declaration.Type {
+		case "array":
+			if declaration.Item == "byte" {
+				fmt.Fprintf(writer, "export function Serialize%s(value: CanCastToArrayBuffer): ArrayBuffer;\n", declaration.Name)
+				fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
+				fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
+				fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
+				fmt.Fprintln(writer, "  indexAt(i: number): number;")
+				fmt.Fprintln(writer, "  raw(): ArrayBuffer;")
+				switch declaration.ItemCount {
+				case 2:
+					fmt.Fprintln(writer, "  toBigEndianUint16(): number;")
+					fmt.Fprintln(writer, "  toLittleEndianUint16(): number;")
+				case 4:
+					fmt.Fprintln(writer, "  toBigEndianUint32(): number;")
+					fmt.Fprintln(writer, "  toLittleEndianUint32(): number;")
+				case 8:
+					fmt.Fprintln(writer, "  toBigEndianUint64(): BigInt;")
+					fmt.Fprintln(writer, "  toLittleEndianUint64(): BigInt;")
+				}
+				fmt.Fprintln(writer, "  static size(): Number;")
+				fmt.Fprintln(writer, "}")
+			} else {
+				childType, err := querySerializingValueType(schema, declaration.Item)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintf(writer, "export function Serialize%s(value: Array<%s>): ArrayBuffer;\n", declaration.Name, childType)
+				fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
+				fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
+				fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
+				fmt.Fprintf(writer, "  indexAt(i: number): %s;\n", declaration.Item)
+				fmt.Fprintln(writer, "  static size(): Number;")
+				fmt.Fprintln(writer, "}")
+			}
+			fmt.Fprintln(writer)
+		case "fixvec":
+			if declaration.Item == "byte" {
+				fmt.Fprintf(writer, "export function Serialize%s(value: CanCastToArrayBuffer): ArrayBuffer;\n", declaration.Name)
+				fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
+				fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
+				fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
+				fmt.Fprintln(writer, "  indexAt(i: number): number;")
+				fmt.Fprintln(writer, "  raw(): ArrayBuffer;")
+				fmt.Fprintln(writer, "  length(): number;")
+				fmt.Fprintln(writer, "}")
+			} else {
+				childType, err := querySerializingValueType(schema, declaration.Item)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintf(writer, "export function Serialize%s(value: Array<%s>): ArrayBuffer;\n", declaration.Name, childType)
+				fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
+				fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
+				fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
+				fmt.Fprintf(writer, "  indexAt(i: number): %s;\n", declaration.Item)
+				fmt.Fprintln(writer, "  length(): number;")
+				fmt.Fprintln(writer, "}")
+			}
+			fmt.Fprintln(writer)
+		case "struct":
+			fmt.Fprintf(writer, "export function Serialize%s(value: object): ArrayBuffer;\n", declaration.Name)
+			fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
+			fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
+			fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
+			fmt.Fprintln(writer, "  static size(): Number;")
+			for _, field := range declaration.Fields {
+				if field.Type == "byte" {
+					fmt.Fprintf(writer, "  %s(): number;\n", strcase.ToLowerCamel(fmt.Sprintf("get_%s", field.Name)))
+				} else {
+					fmt.Fprintf(writer, "  %s(): %s;\n", strcase.ToLowerCamel(fmt.Sprintf("get_%s", field.Name)), field.Type)
+				}
+			}
+			fmt.Fprintln(writer, "}")
+			fmt.Fprintln(writer)
+		case "dynvec":
+			childType, err := querySerializingValueType(schema, declaration.Item)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(writer, "export function Serialize%s(value: Array<%s>): ArrayBuffer;\n", declaration.Name, childType)
+			fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
+			fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
+			fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
+			fmt.Fprintf(writer, "  indexAt(i: number): %s;\n", declaration.Item)
+			fmt.Fprintln(writer, "  length(): number;")
+			fmt.Fprintln(writer, "}")
+			fmt.Fprintln(writer)
+		case "table":
+			fmt.Fprintf(writer, "export function Serialize%s(value: object): ArrayBuffer;\n", declaration.Name)
+			fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
+			fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
+			fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
+			for _, field := range declaration.Fields {
+				if field.Type == "byte" {
+					fmt.Fprintf(writer, "  %s(): number;\n", strcase.ToLowerCamel(fmt.Sprintf("get_%s", field.Name)))
+				} else {
+					fmt.Fprintf(writer, "  %s(): %s;\n", strcase.ToLowerCamel(fmt.Sprintf("get_%s", field.Name)), field.Type)
+				}
+			}
+			fmt.Fprintln(writer, "}")
+			fmt.Fprintln(writer)
+		case "option":
+			if declaration.Item == "byte" {
+				fmt.Fprintf(writer, "export function Serialize%s(value: number | null): ArrayBuffer;\n", declaration.Name)
+				fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
+				fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
+				fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
+				fmt.Fprintln(writer, "  value(): number;")
+				fmt.Fprintln(writer, "  hasValue(): boolean;")
+				fmt.Fprintln(writer, "}")
+			} else {
+				childType, err := querySerializingValueType(schema, declaration.Item)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintf(writer, "export function Serialize%s(value: %s | null): ArrayBuffer;\n", declaration.Name, childType)
+				fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
+				fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
+				fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
+				fmt.Fprintf(writer, "  value(): %s;\n", declaration.Item)
+				fmt.Fprintln(writer, "  hasValue(): boolean;")
+				fmt.Fprintln(writer, "}")
+			}
+			fmt.Fprintln(writer)
+		case "union":
+			fmt.Fprintf(writer, "export function Serialize%s(value: UnionType): ArrayBuffer;\n", declaration.Name)
+			fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
+			fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
+			fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
+			fmt.Fprintf(writer, "  unionType(): string;\n")
+			fmt.Fprintln(writer, "  value(): any;")
+			fmt.Fprintln(writer, "}")
+			fmt.Fprintln(writer)
+		default:
+			fmt.Fprintf(writer, "// TODO: generate definitions for %s, type: %s\n\n", declaration.Name, declaration.Type)
+		}
+	}
+	return nil
+}
+
+func querySerializingValueType(schema Schema, itemName string) (string, error) {
+	declaration, err := schema.FindDeclaration(itemName)
+	if err != nil {
+		return "", err
+	}
+	switch declaration.Type {
+	case "array":
+		fallthrough
+	case "fixvec":
+		if declaration.Item == "byte" {
+			return "CanCastToArrayBuffer", nil
+		} else {
+			childType, err := querySerializingValueType(schema, declaration.Item)
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("Array<%s>", childType), nil
+		}
+	case "dynvec":
+		childType, err := querySerializingValueType(schema, declaration.Item)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("Array<%s>", childType), nil
+	case "struct":
+		fallthrough
+	case "table":
+		// TODO: see if we can generate a more static type later.
+		return "object", nil
+	case "option":
+		return "number | null", nil
+	case "union":
+		// TODO: see if we can generate a more static type later.
+		return "UnionType", nil
+	default:
+		return "", fmt.Errorf("Invalid value type: %s", itemName)
+	}
 }

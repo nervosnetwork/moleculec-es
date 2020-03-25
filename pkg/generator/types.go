@@ -1,5 +1,9 @@
 package generator
 
+import (
+	"fmt"
+)
+
 type Field struct {
 	Type string `json:"type"`
 	Name string `json:"name"`
@@ -17,4 +21,13 @@ type Declaration struct {
 type Schema struct {
 	Namespace    string        `json:"namespace"`
 	Declarations []Declaration `json:"declarations"`
+}
+
+func (s Schema) FindDeclaration(itemName string) (Declaration, error) {
+	for _, declaration := range s.Declarations {
+		if declaration.Name == itemName {
+			return declaration, nil
+		}
+	}
+	return Declaration{}, fmt.Errorf("Cannot find type %s!", itemName)
 }
