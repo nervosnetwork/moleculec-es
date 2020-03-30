@@ -254,10 +254,11 @@ function serializeTable(buffers) {
 					sizes = append(sizes, "1")
 				} else {
 					fmt.Fprintf(writer, `  %s() {
-    return new %s(this.view.buffer.slice(%s, %s.size()), { validate: false });
+    return new %s(this.view.buffer.slice(%s, %s + %s.size()), { validate: false });
   }`+"\n\n",
 						strcase.ToLowerCamel(fmt.Sprintf("get_%s", field.Name)),
 						field.Type,
+						strings.Join(sizes, " + "),
 						strings.Join(sizes, " + "),
 						field.Type)
 					sizes = append(sizes, fmt.Sprintf("%s.size()", field.Type))
