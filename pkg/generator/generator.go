@@ -511,17 +511,21 @@ function serializeTable(buffers) {
 			for i, item := range declaration.Items {
 				fmt.Fprintf(writer, "  case \"%s\":\n", item)
 				if item == "byte" {
-					fmt.Fprintf(writer, `    const view = new DataView(new ArrayBuffer(5));
-    view.setUint32(0, %d, true);
-    view.setUint8(4, value.value);
-    return view.buffer;`+"\n", i)
+					fmt.Fprintf(writer, `    {
+      const view = new DataView(new ArrayBuffer(5));
+      view.setUint32(0, %d, true);
+      view.setUint8(4, value.value);
+      return view.buffer;
+    }`+"\n", i)
 				} else {
-					fmt.Fprintf(writer, `    const itemBuffer = Serialize%s(value.value);
-    const array = new Uint8Array(4 + itemBuffer.byteLength);
-    const view = new DataView(array.buffer);
-    view.setUint32(0, %d, true);
-    array.set(new Uint8Array(itemBuffer), 4);
-    return array.buffer;`+"\n", item, i)
+					fmt.Fprintf(writer, `    {
+      const itemBuffer = Serialize%s(value.value);
+      const array = new Uint8Array(4 + itemBuffer.byteLength);
+      const view = new DataView(array.buffer);
+      view.setUint32(0, %d, true);
+      array.set(new Uint8Array(itemBuffer), 4);
+      return array.buffer;
+    }`+"\n", item, i)
 				}
 			}
 			fmt.Fprintln(writer, `  default:
