@@ -264,8 +264,8 @@ function serializeTable(buffers) {
 					sizes = append(sizes, fmt.Sprintf("%s.size()", field.Type))
 				}
 			}
-			fmt.Fprintln(writer, `  validate(compatible = false) {
-    assertDataLength(this.view.byteLength, this.size());`)
+			fmt.Fprintf(writer, `  validate(compatible = false) {
+    assertDataLength(this.view.byteLength, %s.size());`+"\n", declaration.Name)
 			for _, field := range declaration.Fields {
 				if field.Type != "byte" {
 					fmt.Fprintf(writer, "    this.%s().validate(compatible);\n",
