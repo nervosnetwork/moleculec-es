@@ -22,11 +22,11 @@ func (w *innerWriter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
-func Generate(schema Schema, writer io.Writer, tsWriter io.Writer) error {
+func Generate(options Options, schema Schema, writer io.Writer, tsWriter io.Writer) error {
 	iw := &innerWriter{
 		writer: writer,
 	}
-	err := doGenerate(schema, iw)
+	err := doGenerate(options, schema, iw)
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func Generate(schema Schema, writer io.Writer, tsWriter io.Writer) error {
 		tw := &innerWriter{
 			writer: tsWriter,
 		}
-		err = doGenerateDefinition(schema, tw)
+		err = doGenerateDefinition(options, schema, tw)
 		if err != nil {
 			return err
 		}
@@ -48,7 +48,7 @@ func Generate(schema Schema, writer io.Writer, tsWriter io.Writer) error {
 	return nil
 }
 
-func doGenerate(schema Schema, writer *innerWriter) error {
+func doGenerate(options Options, schema Schema, writer *innerWriter) error {
 	fmt.Fprintln(writer, `function dataLengthError(actual, required) {
     throw new Error(`+"`"+`Invalid data length! Required: ${required}, actual: ${actual}`+"`"+`);
 }
@@ -174,14 +174,16 @@ function serializeTable(buffers) {
 					fmt.Fprintln(writer, "  }")
 					fmt.Fprintln(writer)
 				case 8:
-					fmt.Fprintln(writer, "  toBigEndianBigUint64() {")
-					fmt.Fprintln(writer, "    return this.view.getBigUint64(0, false);")
-					fmt.Fprintln(writer, "  }")
-					fmt.Fprintln(writer)
-					fmt.Fprintln(writer, "  toLittleEndianBigUint64() {")
-					fmt.Fprintln(writer, "    return this.view.getUint64(0, true);")
-					fmt.Fprintln(writer, "  }")
-					fmt.Fprintln(writer)
+					if options.HasBigInt {
+						fmt.Fprintln(writer, "  toBigEndianBigUint64() {")
+						fmt.Fprintln(writer, "    return this.view.getBigUint64(0, false);")
+						fmt.Fprintln(writer, "  }")
+						fmt.Fprintln(writer)
+						fmt.Fprintln(writer, "  toLittleEndianBigUint64() {")
+						fmt.Fprintln(writer, "    return this.view.getUint64(0, true);")
+						fmt.Fprintln(writer, "  }")
+						fmt.Fprintln(writer)
+					}
 				}
 				fmt.Fprintln(writer, "  static size() {")
 				fmt.Fprintf(writer, "    return %d;\n", declaration.ItemCount)
@@ -542,7 +544,7 @@ function serializeTable(buffers) {
 	return nil
 }
 
-func doGenerateDefinition(schema Schema, writer *innerWriter) error {
+func doGenerateDefinition(options Options, schema Schema, writer *innerWriter) error {
 	fmt.Fprintln(writer, `export interface CastToArrayBuffer {
   toArrayBuffer(): ArrayBuffer;
 }
@@ -576,8 +578,10 @@ export interface UnionType {
 					fmt.Fprintln(writer, "  toBigEndianUint32(): number;")
 					fmt.Fprintln(writer, "  toLittleEndianUint32(): number;")
 				case 8:
-					fmt.Fprintln(writer, "  toBigEndianUint64(): BigInt;")
-					fmt.Fprintln(writer, "  toLittleEndianUint64(): BigInt;")
+					if options.HasBigInt {
+						fmt.Fprintln(writer, "  toBigEndianUint64(): BigInt;")
+						fmt.Fprintln(writer, "  toLittleEndianUint64(): BigInt;")
+					}
 				}
 				fmt.Fprintln(writer, "  static size(): Number;")
 				fmt.Fprintln(writer, "}")

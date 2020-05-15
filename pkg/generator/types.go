@@ -4,6 +4,10 @@ import (
 	"fmt"
 )
 
+type Options struct {
+	HasBigInt bool
+}
+
 type Field struct {
 	Type string `json:"type"`
 	Name string `json:"name"`

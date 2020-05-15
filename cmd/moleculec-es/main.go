@@ -15,6 +15,7 @@ import (
 var inputFile = flag.String("inputFile", "", "Input file to use")
 var outputFile = flag.String("outputFile", "-", "Output file to generate, use '-' to print to stdout")
 var generateTS = flag.Bool("generateTypeScriptDefinition", false, "True to generate TypeScript definition")
+var hasBigInt = flag.Bool("hasBigInt", false, "True to generate BigInt related functions")
 
 func main() {
 	flag.Parse()
@@ -50,7 +51,10 @@ func main() {
 		}
 	}
 
-	err = generator.Generate(schema, writer, tsWriter)
+	options := generator.Options{
+		HasBigInt: *hasBigInt,
+	}
+	err = generator.Generate(options, schema, writer, tsWriter)
 	if err != nil {
 		log.Fatal(err)
 	}
