@@ -180,7 +180,7 @@ function serializeTable(buffers) {
 						fmt.Fprintln(writer, "  }")
 						fmt.Fprintln(writer)
 						fmt.Fprintln(writer, "  toLittleEndianBigUint64() {")
-						fmt.Fprintln(writer, "    return this.view.getUint64(0, true);")
+						fmt.Fprintln(writer, "    return this.view.getBigUint64(0, true);")
 						fmt.Fprintln(writer, "  }")
 						fmt.Fprintln(writer)
 					}
@@ -281,7 +281,7 @@ function serializeTable(buffers) {
 		case "dynvec":
 			fmt.Fprintf(writer, `  validate(compatible = false) {
     const offsets = verifyAndExtractOffsets(this.view, 0, true);
-    for (let i = 0; i < len(offsets) - 1; i++) {
+    for (let i = 0; i < offsets.length - 1; i++) {
       new %s(this.view.buffer.slice(offsets[i], offsets[i + 1]), { validate: false }).validate();
     }
   }
@@ -579,8 +579,8 @@ export interface UnionType {
 					fmt.Fprintln(writer, "  toLittleEndianUint32(): number;")
 				case 8:
 					if options.HasBigInt {
-						fmt.Fprintln(writer, "  toBigEndianUint64(): BigInt;")
-						fmt.Fprintln(writer, "  toLittleEndianUint64(): BigInt;")
+						fmt.Fprintln(writer, "  toBigEndianBigUint64(): bigint;")
+						fmt.Fprintln(writer, "  toLittleEndianBigUint64(): bigint;")
 					}
 				}
 				fmt.Fprintln(writer, "  static size(): Number;")
