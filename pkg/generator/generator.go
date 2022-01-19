@@ -619,11 +619,7 @@ export interface UnionType {
 				fmt.Fprintln(writer, "  static size(): Number;")
 				fmt.Fprintln(writer, "}")
 			} else {
-				childType, err := querySerializingValueType(schema, declaration.Item)
-				if err != nil {
-					return err
-				}
-				fmt.Fprintf(writer, "export function Serialize%s(value: Array<%s>): ArrayBuffer;\n", declaration.Name, childType)
+				fmt.Fprintf(writer, "export function Serialize%s(value: Array<%sType>): ArrayBuffer;\n", declaration.Name, declaration.Name)
 				fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
 				fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
 				fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
@@ -643,11 +639,7 @@ export interface UnionType {
 				fmt.Fprintln(writer, "  length(): number;")
 				fmt.Fprintln(writer, "}")
 			} else {
-				childType, err := querySerializingValueType(schema, declaration.Item)
-				if err != nil {
-					return err
-				}
-				fmt.Fprintf(writer, "export function Serialize%s(value: Array<%s>): ArrayBuffer;\n", declaration.Name, childType)
+				fmt.Fprintf(writer, "export function Serialize%s(value: Array<%sType>): ArrayBuffer;\n", declaration.Name, declaration.Item)
 				fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
 				fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
 				fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
@@ -672,11 +664,7 @@ export interface UnionType {
 			fmt.Fprintln(writer, "}")
 			fmt.Fprintln(writer)
 		case "dynvec":
-			childType, err := querySerializingValueType(schema, declaration.Item)
-			if err != nil {
-				return err
-			}
-			fmt.Fprintf(writer, "export function Serialize%s(value: Array<%s>): ArrayBuffer;\n", declaration.Name, childType)
+			fmt.Fprintf(writer, "export function Serialize%s(value: Array<%sType>): ArrayBuffer;\n", declaration.Name, declaration.Item)
 			fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
 			fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
 			fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
@@ -708,11 +696,7 @@ export interface UnionType {
 				fmt.Fprintln(writer, "  hasValue(): boolean;")
 				fmt.Fprintln(writer, "}")
 			} else {
-				childType, err := querySerializingValueType(schema, declaration.Item)
-				if err != nil {
-					return err
-				}
-				fmt.Fprintf(writer, "export function Serialize%s(value: %s | null): ArrayBuffer;\n", declaration.Name, childType)
+				fmt.Fprintf(writer, "export function Serialize%s(value: %sType | null): ArrayBuffer;\n", declaration.Name, declaration.Item)
 				fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
 				fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
 				fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")
