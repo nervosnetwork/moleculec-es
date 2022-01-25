@@ -589,6 +589,8 @@ export interface UnionType {
 				} else {
 					fmt.Fprintf(writer, "export type %sType = %sType;\n", declaration.Name, declaration.Item)
 				}
+			} else {
+				fmt.Fprintf(writer, "export type %sType = %sType | undefined;\n", declaration.Name, declaration.Item)
 			}
 		}
 		fmt.Fprintln(writer)

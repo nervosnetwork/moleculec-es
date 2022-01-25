@@ -12,7 +12,36 @@ import (
 )
 
 func TestGenerator(t *testing.T) {
-	content, err := ioutil.ReadFile("./schema.json")
+	RunGenerator("blockchain")
+	got, want := GetResult("blockchain")
+	if !Equal(got, want) {
+		t.Errorf("got %v want %v", got, want)
+	}
+}
+func TestGeneratorEmbedded(t *testing.T) {
+	RunGenerator("embedded")
+	got, want := GetResult("embedded")
+	if !Equal(got, want) {
+		t.Errorf("got %v want %v", got, want)
+	}
+}
+
+func GetResult(testName string) ([]byte, []byte) {
+	got, err := ioutil.ReadFile("generated/" + testName + "_generated.d.ts")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	want, err := ioutil.ReadFile(testName + ".d.ts")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return got, want
+}
+
+func RunGenerator(inputSchemaName string) {
+	content, err := ioutil.ReadFile("./" + inputSchemaName + ".json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,7 +54,7 @@ func TestGenerator(t *testing.T) {
 
 	writer := os.Stdout
 	var tsWriter io.Writer
-	tsFileName := "./generated/test_generated.d.ts"
+	tsFileName := "./generated/" + inputSchemaName + "_generated.d.ts"
 	tsWriter, err = os.OpenFile(tsFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatal(err)
@@ -38,21 +67,6 @@ func TestGenerator(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	got, err := ioutil.ReadFile("generated/test_generated.d.ts")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	want, err := ioutil.ReadFile("blockchain.d.ts")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if !Equal(got, want) {
-		t.Errorf("got %v want %v", got, want)
-	}
-
 }
 
 func Equal(a, b []byte) bool {

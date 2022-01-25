@@ -25,11 +25,13 @@ export type Uint256Type = CanCastToArrayBuffer;
 
 export type BytesType = CanCastToArrayBuffer;
 
+export type BytesOptType = BytesType | undefined;
 
 export type BytesVecType = BytesType[];
 
 export type Byte32VecType = Byte32Type[];
 
+export type ScriptOptType = ScriptType | undefined;
 
 export type ProposalShortIdType = CanCastToArrayBuffer;
 
