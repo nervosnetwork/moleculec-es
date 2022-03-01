@@ -580,6 +580,16 @@ export interface UnionType {
 				}
 			}
 			fmt.Fprintln(writer, "}")
+		} else if declaration.Type == "union" {
+			fmt.Fprintf(writer, "export type %sType =", declaration.Name)
+			for _, item := range declaration.Items {
+				if(schemaMap[item].Type == "byte") {
+					fmt.Fprintf(writer, "\n\t|{ type: \"%s\", value: CanCastToArrayBuffer}", item)
+				} else {
+					fmt.Fprintf(writer, "\n\t|{ type: \"%s\", value: %sType }", item, item)
+				}
+			}
+			fmt.Fprintf(writer, ";\n")
 		} else if declaration.Item == "byte" {
 			fmt.Fprintf(writer, "export type %sType = CanCastToArrayBuffer;\n", declaration.Name)
 		} else {
@@ -708,7 +718,7 @@ export interface UnionType {
 			}
 			fmt.Fprintln(writer)
 		case "union":
-			fmt.Fprintf(writer, "export function Serialize%s(value: UnionType): ArrayBuffer;\n", declaration.Name)
+			fmt.Fprintf(writer, "export function Serialize%s(value: %sType): ArrayBuffer;\n", declaration.Name, declaration.Name)
 			fmt.Fprintf(writer, "export class %s {\n", declaration.Name)
 			fmt.Fprintln(writer, "  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);")
 			fmt.Fprintln(writer, "  validate(compatible?: boolean): void;")

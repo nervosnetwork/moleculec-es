@@ -25,6 +25,13 @@ func TestGeneratorEmbedded(t *testing.T) {
 		t.Errorf("got %v want %v", got, want)
 	}
 }
+func TestGeneratorUnionVector(t *testing.T) {
+	RunGenerator("union_vector")
+	got, want := GetResult("union_vector")
+	if !Equal(got, want) {
+		t.Errorf("got %v want %v", got, want)
+	}
+}
 
 func GetResult(testName string) ([]byte, []byte) {
 	got, err := ioutil.ReadFile("generated/" + testName + "_generated.d.ts")
