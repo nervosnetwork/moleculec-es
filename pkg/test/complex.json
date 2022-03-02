@@ -1,0 +1,129 @@
+{
+  "namespace": "complex",
+  "imports": [],
+  "declarations": [
+    {
+      "type": "array",
+      "name": "Uint32",
+      "item": "byte",
+      "item_count": 4
+    },
+    {
+      "type": "array",
+      "name": "Uint64",
+      "item": "byte",
+      "item_count": 8
+    },
+    {
+      "type": "array",
+      "name": "Uint128",
+      "item": "byte",
+      "item_count": 16
+    },
+    {
+      "type": "array",
+      "name": "Byte32",
+      "item": "byte",
+      "item_count": 32
+    },
+    {
+      "type": "array",
+      "name": "Uint256",
+      "item": "byte",
+      "item_count": 32
+    },
+    {
+      "type": "fixvec",
+      "name": "Bytes",
+      "item": "byte"
+    },
+    {
+      "type": "option",
+      "name": "BytesOpt",
+      "item": "Bytes"
+    },
+    {
+      "type": "dynvec",
+      "name": "BytesVec",
+      "item": "Bytes"
+    },
+    {
+      "type": "fixvec",
+      "name": "Byte32Vec",
+      "item": "Byte32"
+    },
+    {
+      "type": "union",
+      "name": "BaseData",
+      "items": [
+        "Bytes",
+        "Uint32",
+        "Uint64"
+      ]
+    },
+    {
+      "type": "union",
+      "name": "BigNumber",
+      "items": [
+        "Uint64",
+        "Uint128"
+      ]
+    },
+    {
+      "type": "union",
+      "name": "AllRoad",
+      "items": [
+        "BaseData",
+        "BigNumber"
+      ]
+    },
+    {
+      "type": "option",
+      "name": "BaseDataOpt",
+      "item": "BaseData"
+    },
+    {
+      "type": "option",
+      "name": "BigNumberOpt",
+      "item": "BigNumber"
+    },
+    {
+      "type": "dynvec",
+      "name": "BaseDataOptVec",
+      "item": "BaseDataOpt"
+    },
+    {
+      "type": "dynvec",
+      "name": "BigNumberOptVec",
+      "item": "BigNumberOpt"
+    },
+    {
+      "type": "table",
+      "name": "Vehicle",
+      "fields": [
+        {
+          "name": "distance",
+          "type": "BaseDataOptVec"
+        },
+        {
+          "name": "gas",
+          "type": "BigNumberOptVec"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "Garage",
+      "fields": [
+        {
+          "name": "car",
+          "type": "Vehicle"
+        },
+        {
+          "name": "monitor",
+          "type": "AllRoad"
+        }
+      ]
+    }
+  ]
+}

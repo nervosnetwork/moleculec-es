@@ -583,7 +583,7 @@ export interface UnionType {
 		} else if declaration.Type == "union" {
 			fmt.Fprintf(writer, "export type %sType =", declaration.Name)
 			for _, item := range declaration.Items {
-				if(schemaMap[item].Type == "byte") {
+				if schemaMap[item].Type == "byte" {
 					fmt.Fprintf(writer, "\n\t|{ type: \"%s\", value: CanCastToArrayBuffer}", item)
 				} else {
 					fmt.Fprintf(writer, "\n\t|{ type: \"%s\", value: %sType }", item, item)

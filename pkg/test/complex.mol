@@ -1,0 +1,45 @@
+/* Basic Types */
+array Uint32 [byte; 4];
+array Uint64 [byte; 8];
+array Uint128 [byte; 16];
+array Byte32 [byte; 32];
+array Uint256 [byte; 32];
+
+vector Bytes <byte>;
+option BytesOpt (Bytes); 
+
+vector BytesVec <Bytes>;
+vector Byte32Vec <Byte32>;
+
+union BaseData {
+    Bytes,
+    Uint32,
+    Uint64,
+}
+
+union BigNumber {
+    Uint64,
+    Uint128,
+}
+
+union AllRoad {
+    BaseData,
+    BigNumber,
+}
+
+option BaseDataOpt (BaseData);
+option BigNumberOpt (BigNumber);
+
+vector BaseDataOptVec <BaseDataOpt>;
+vector BigNumberOptVec <BigNumberOpt>;
+
+table Vehicle {
+    distance:    BaseDataOptVec,
+    gas:         BigNumberOptVec,
+}
+
+table Garage {
+    car:            Vehicle,
+    monitor:        AllRoad,
+}
+
