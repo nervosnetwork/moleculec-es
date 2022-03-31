@@ -1,0 +1,85 @@
+{
+  "namespace": "union_vector",
+  "imports": [],
+  "declarations": [
+    {
+      "type": "array",
+      "name": "Uint32",
+      "item": "byte",
+      "item_count": 4
+    },
+    {
+      "type": "array",
+      "name": "Uint64",
+      "item": "byte",
+      "item_count": 8
+    },
+    {
+      "type": "array",
+      "name": "Uint128",
+      "item": "byte",
+      "item_count": 16
+    },
+    {
+      "type": "array",
+      "name": "Byte32",
+      "item": "byte",
+      "item_count": 32
+    },
+    {
+      "type": "array",
+      "name": "Uint256",
+      "item": "byte",
+      "item_count": 32
+    },
+    {
+      "type": "fixvec",
+      "name": "Bytes",
+      "item": "byte"
+    },
+    {
+      "type": "option",
+      "name": "BytesOpt",
+      "item": "Bytes"
+    },
+    {
+      "type": "dynvec",
+      "name": "BytesVec",
+      "item": "Bytes"
+    },
+    {
+      "type": "fixvec",
+      "name": "Byte32Vec",
+      "item": "Byte32"
+    },
+    {
+      "type": "union",
+      "name": "Mixed",
+      "items": [
+        "Bytes",
+        "Uint32",
+        "Uint64"
+      ]
+    },
+    {
+      "type": "option",
+      "name": "MixedOpt",
+      "item": "Mixed"
+    },
+    {
+      "type": "dynvec",
+      "name": "MixedOptVec",
+      "item": "MixedOpt"
+    },
+    {
+      "type": "table",
+      "name": "Example",
+      "fields": [
+        {
+          "name": "mix",
+          "type": "MixedOptVec"
+        }
+      ]
+    }
+  ]
+}

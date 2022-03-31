@@ -1,0 +1,62 @@
+{
+  "namespace": "embeded",
+  "imports": [],
+  "declarations": [
+    {
+      "type": "array",
+      "name": "Uint32",
+      "item": "byte",
+      "item_count": 4
+    },
+    {
+      "type": "fixvec",
+      "name": "Bytes",
+      "item": "byte"
+    },
+    {
+      "type": "option",
+      "name": "BytesOpt",
+      "item": "Bytes"
+    },
+    {
+      "type": "dynvec",
+      "name": "BytesVec",
+      "item": "Bytes"
+    },
+    {
+      "type": "dynvec",
+      "name": "BytesMatrix",
+      "item": "BytesVec"
+    },
+    {
+      "type": "table",
+      "name": "BytesTable",
+      "fields": [
+        {
+          "name": "bytes_matrix",
+          "type": "BytesMatrix"
+        }
+      ]
+    },
+    {
+      "type": "option",
+      "name": "BytesTableOpt",
+      "item": "BytesTable"
+    },
+    {
+      "type": "dynvec",
+      "name": "BytesTableOptVec",
+      "item": "BytesTableOpt"
+    },
+    {
+      "type": "table",
+      "name": "Block",
+      "fields": [
+        {
+          "name": "data",
+          "type": "BytesTableOptVec"
+        }
+      ]
+    }
+  ]
+}

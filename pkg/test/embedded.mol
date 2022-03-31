@@ -1,0 +1,23 @@
+
+/* Basic Types */
+
+array Uint32 [byte; 4];
+vector Bytes <byte>;
+option BytesOpt (Bytes); 
+vector BytesVec <Bytes>;
+vector BytesMatrix <BytesVec>;
+
+/* Types for Chain */
+
+table BytesTable {
+    bytes_matrix:              BytesMatrix,
+}
+
+option BytesTableOpt (BytesTable); 
+
+vector BytesTableOptVec <BytesTableOpt>;
+
+table Block {
+    data:           BytesTableOptVec,
+}
+

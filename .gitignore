@@ -15,3 +15,6 @@
 # vendor/
 
 moleculec-es
+data
+dist
+pkg/test/generated/**/*
