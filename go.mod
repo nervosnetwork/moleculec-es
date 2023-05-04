@@ -1,4 +1,4 @@
-module github.com/xxuejie/moleculec-es
+module github.com/nervosnetwork/moleculec-es
 
 go 1.13
 
