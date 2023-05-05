@@ -9,7 +9,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/xxuejie/moleculec-es/pkg/generator"
+	"github.com/nervosnetwork/moleculec-es/pkg/generator"
 )
 
 var inputFile = flag.String("inputFile", "", "Input file to use")
