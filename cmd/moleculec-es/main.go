@@ -26,9 +26,14 @@ func main() {
 	}
 
 	var schema generator.Schema
+	var schemaOld generator.SchemaOld
 	err = json.Unmarshal(content, &schema)
 	if err != nil {
-		log.Fatal(err)
+		err = json.Unmarshal(content, &schemaOld)
+		if err != nil {
+			log.Fatal(err)
+		}
+		schema = schemaOld.ChangeToNew()
 	}
 
 	writer := os.Stdout
