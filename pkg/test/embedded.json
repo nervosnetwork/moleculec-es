@@ -1,5 +1,8 @@
 {
-  "namespace": "embeded",
+  "syntax_version": {
+    "version": 1
+  },
+  "namespace": "embedded",
   "imports": [],
   "declarations": [
     {
