@@ -1,4 +1,7 @@
 {
+  "syntax_version": {
+    "version": 1
+  },
   "namespace": "blockchain",
   "imports": [],
   "declarations": [

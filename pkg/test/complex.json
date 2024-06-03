@@ -1,4 +1,7 @@
 {
+  "syntax_version": {
+    "version": 1
+  },
   "namespace": "complex",
   "imports": [],
   "declarations": [
@@ -56,25 +59,46 @@
       "type": "union",
       "name": "BaseData",
       "items": [
-        "Bytes",
-        "Uint32",
-        "Uint64"
+        {
+          "typ": "Bytes",
+          "id": 0
+        },
+        {
+          "typ": "Uint32",
+          "id": 1
+        },
+        {
+          "typ": "Uint64",
+          "id": 2
+        }
       ]
     },
     {
       "type": "union",
       "name": "BigNumber",
       "items": [
-        "Uint64",
-        "Uint128"
+        {
+          "typ": "Uint64",
+          "id": 0
+        },
+        {
+          "typ": "Uint128",
+          "id": 1
+        }
       ]
     },
     {
       "type": "union",
       "name": "AllRoad",
       "items": [
-        "BaseData",
-        "BigNumber"
+        {
+          "typ": "BaseData",
+          "id": 0
+        },
+        {
+          "typ": "BigNumber",
+          "id": 1
+        }
       ]
     },
     {
